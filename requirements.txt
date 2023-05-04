@@ -1,1 +1,7 @@
 Flask==2.2.2
+torch==2.0.0
+numpy==1.24.3
+transformers==4.28.1
+fuzzywuzzy==0.18.0
+tqdm==4.65.0
+python-Levenshtein==0.21.0
