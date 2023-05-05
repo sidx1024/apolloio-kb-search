@@ -13,3 +13,4 @@ env.bak/
 venv.bak/
 **node_modules**
 .DS_Store
+.env.prod
