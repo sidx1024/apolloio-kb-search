@@ -36,6 +36,7 @@ preprocessed_data = json.load(open(articles, 'r'))
 # Initialize tokenizer and model
 # model_name = "sentence-transformers/paraphrase-distilroberta-base-v2"
 model_name = "sentence-transformers/all-mpnet-base-v2"
+token_size = 512
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModel.from_pretrained(model_name)
 
@@ -64,7 +65,7 @@ def precompute_embeddings(preprocessed_data, model, tokenizer, device, batch_siz
             [article["body"].lower() for article in batch],
             padding="max_length",
             truncation=True,
-            max_length=512,
+            max_length=token_size,
             return_tensors="pt",
         )
 
@@ -91,7 +92,7 @@ def search():
             user_query,
             padding="max_length",
             truncation=True,
-            max_length=512,
+            max_length=token_size,
             return_tensors="pt",
         )
 

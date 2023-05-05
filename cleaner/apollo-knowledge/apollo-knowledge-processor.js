@@ -56,6 +56,7 @@ function getArticleData(article) {
         if (headings[0] !== article.title) {
           headings.unshift(article.title);
         }
+        headings = headings.join(' > ');
         if (data.at(-1)?.headings === headings) {
           data.at(-1).body += text + ' ';
         } else {
