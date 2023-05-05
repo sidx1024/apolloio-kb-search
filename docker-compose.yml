@@ -12,7 +12,7 @@ services:
         target: /app/.venv
     ports:
       - '3002:5000'
-    env_file: .env.dev
+    env_file: .env
 
 volumes:
   venv:

@@ -66,11 +66,11 @@ with open("article_embeddings.json", "r") as f:
     precomputed_embeddings = json.load(f)
 
 # Load preprocessed data
-articles = './cleaner/clean_articles.json'
+articles = './cleaner/apollo-knowledge/clean_articles.json'
 preprocessed_data = json.load(open(articles, 'r'))
 
 # Initialize tokenizer and model
-model_name = "sentence-transformers/paraphrase-distilroberta-base-v2"
+# model_name = "sentence-transformers/paraphrase-distilroberta-base-v2"
 model_name = "sentence-transformers/all-mpnet-base-v2"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModel.from_pretrained(model_name)

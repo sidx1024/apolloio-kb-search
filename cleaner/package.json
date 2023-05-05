@@ -1,18 +1,15 @@
 {
   "name": "cleaner",
+  "type": "module",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "node index.js"
+    "generate:apollo-knowledge": "node index.js --dataset apollo-knowledge --input apollo-knowledge/raw_articles.json --output apollo-knowledge/clean_articles.json"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "convert-array-to-csv": "^2.0.0",
-    "css-select": "^5.1.0",
-    "jsdom": "^22.0.0",
-    "minidom": "^1.0.0",
-    "parse5": "^7.1.2"
+    "jsdom": "^22.0.0"
   }
 }
