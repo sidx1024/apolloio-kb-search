@@ -131,8 +131,18 @@ def search():
                 fuzzy_score = fuzz.token_set_ratio(
                     user_query, article['body']) / 100
 
-                # Combine the similarity_score and fuzzy_score using weights
-                weighted_score = 0.3 * score + 0.7 * fuzzy_score
+                # Calculate the label match score for the user query
+                labels_score = fuzz.token_set_ratio(
+                    user_query, ' '.join(article['labels'])) / 100
+
+                # Combine the similarity_score, fuzzy_score, and labels_score using weights
+                similarity_weight = 0.3
+                fuzzy_weight = 0.4
+                labels_weight = 0.3
+
+                weighted_score = (similarity_weight * score +
+                                  fuzzy_weight * fuzzy_score +
+                                  labels_weight * labels_score)
 
                 results.append({
                     'matching_chunk': article['body'],
@@ -140,6 +150,7 @@ def search():
                     'headings': article['headings'],
                     'similarity_score': score,
                     'fuzzy_score': fuzzy_score,
+                    'labels_score': labels_score,
                     'weighted_score': weighted_score
                 })
 
@@ -157,13 +168,24 @@ def search():
                     (r for r in results if r['article_url'] == article['html_url']), None)
 
                 if not existing_result:
+                    # Calculate the heading match score for the user query and the article headings
+                    labels_score = fuzz.token_set_ratio(
+                        user_query, ' '.join(article['labels'])) / 100
+
+                    # Combine the fuzzy_score and labels_score using weights
+                    fuzzy_weight = 0.7
+                    labels_weight = 0.3
+                    weighted_score = (fuzzy_weight * fuzzy_score +
+                                      labels_weight * labels_score)
+
                     results.append({
                         'matching_chunk': article['body'],
                         'article_url': article['html_url'],
                         'headings': article['headings'],
                         'similarity_score': 0,
                         'fuzzy_score': fuzzy_score,
-                        'weighted_score': 0.7 * fuzzy_score
+                        'labels_score': labels_score,
+                        'weighted_score': weighted_score
                     })
 
         # Sort the results based on the weighted_score in descending order
