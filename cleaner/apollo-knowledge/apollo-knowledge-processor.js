@@ -64,6 +64,7 @@ function getArticleData(article) {
             // type: node.nodeName,
             title: article.title,
             headings,
+            labels: article.label_names,
             body: text + ' ',
             html_url: article_url,
           });
