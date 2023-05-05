@@ -45,16 +45,6 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
 
-@auth.verify_token
-def verify_token(token):
-    if env == 'development':
-        return True
-    if token in tokens:
-        g.current_user = tokens[token]
-        return True
-    return False
-
-
 def precompute_embeddings(preprocessed_data, model, tokenizer, device, batch_size=32):
     embeddings = []
 
@@ -78,6 +68,16 @@ def precompute_embeddings(preprocessed_data, model, tokenizer, device, batch_siz
         embeddings.extend(batch_embeddings.cpu().numpy().tolist())
 
     return embeddings
+
+
+@auth.verify_token
+def verify_token(token):
+    if env == 'development':
+        return True
+    if token in tokens:
+        g.current_user = tokens[token]
+        return True
+    return False
 
 
 @app.route('/search', methods=['GET'])
