@@ -2,14 +2,39 @@ import torch
 import json
 import numpy as np
 import argparse
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, g
 from transformers import AutoTokenizer, AutoModel
 from fuzzywuzzy import fuzz
 from tqdm import tqdm
 
 from flask import Flask
+from flask_httpauth import HTTPTokenAuth
+import os
+from dotenv import load_dotenv
+
+load_dotenv()  # Load the environment variables from the .env file
 
 app = Flask(__name__)
+auth = HTTPTokenAuth(scheme='Bearer')
+env = os.getenv('ENV')
+
+# Read the token from the .env file
+BEARER_TOKEN = os.getenv('BEARER_TOKEN')
+
+tokens = {
+    BEARER_TOKEN: "user"
+}
+
+
+@auth.verify_token
+def verify_token(token):
+    if env == 'development':
+        return True
+    if token in tokens:
+        g.current_user = tokens[token]
+        return True
+    return False
+
 
 def precompute_embeddings(preprocessed_data, model, tokenizer, device, batch_size=32):
     embeddings = []
@@ -28,11 +53,13 @@ def precompute_embeddings(preprocessed_data, model, tokenizer, device, batch_siz
         encoded_batch.to(device)
 
         with torch.no_grad():
-            batch_embeddings = model(encoded_batch["input_ids"], attention_mask=encoded_batch["attention_mask"])[0].mean(1)
+            batch_embeddings = model(
+                encoded_batch["input_ids"], attention_mask=encoded_batch["attention_mask"])[0].mean(1)
 
         embeddings.extend(batch_embeddings.cpu().numpy().tolist())
 
     return embeddings
+
 
 # Load the precomputed embeddings
 with open("article_embeddings.json", "r") as f:
@@ -52,7 +79,9 @@ model = AutoModel.from_pretrained(model_name)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
+
 @app.route('/search', methods=['GET'])
+@auth.login_required
 def search():
     try:
         # Your existing search code
@@ -71,18 +100,21 @@ def search():
 
         # Generate embeddings for the user query
         with torch.no_grad():
-            query_embedding = model(encoded_query["input_ids"], attention_mask=encoded_query["attention_mask"])[0].mean(1)
+            query_embedding = model(
+                encoded_query["input_ids"], attention_mask=encoded_query["attention_mask"])[0].mean(1)
 
         # Calculate similarity scores between the query and articles
         similarity_scores = []
         query_embedding = query_embedding.cpu().numpy()
 
         for idx, article_embedding in enumerate(precomputed_embeddings):
-            similarity = np.dot(query_embedding, np.array(article_embedding)) / (np.linalg.norm(query_embedding) * np.linalg.norm(article_embedding))
+            similarity = np.dot(query_embedding, np.array(article_embedding)) / (
+                np.linalg.norm(query_embedding) * np.linalg.norm(article_embedding))
             similarity_scores.append((similarity.item(), idx))
 
         # Sort the similarity scores in descending order
-        sorted_similarity_scores = sorted(similarity_scores, key=lambda x: x[0], reverse=True)
+        sorted_similarity_scores = sorted(
+            similarity_scores, key=lambda x: x[0], reverse=True)
 
         k = 8
 
@@ -96,7 +128,8 @@ def search():
                 article = preprocessed_data[idx]
 
                 # Calculate the fuzzy search score for the user query and the matching chunk
-                fuzzy_score = fuzz.token_set_ratio(user_query, article['body']) / 100
+                fuzzy_score = fuzz.token_set_ratio(
+                    user_query, article['body']) / 100
 
                 # Combine the similarity_score and fuzzy_score using weights
                 weighted_score = 0.3 * score + 0.7 * fuzzy_score
@@ -111,7 +144,8 @@ def search():
                 })
 
         # Calculate fuzzy search scores for all articles
-        fuzzy_scores = [(fuzz.token_set_ratio(user_query, article['body']) / 100, idx) for idx, article in enumerate(preprocessed_data)]
+        fuzzy_scores = [(fuzz.token_set_ratio(user_query, article['body']) / 100, idx)
+                        for idx, article in enumerate(preprocessed_data)]
 
         # Add fuzzy matches to the results if they are not already included
         for fuzzy_score, idx in fuzzy_scores:
@@ -119,7 +153,8 @@ def search():
                 article = preprocessed_data[idx]
 
                 # Check if the article is already in the results
-                existing_result = next((r for r in results if r['article_url'] == article['html_url']), None)
+                existing_result = next(
+                    (r for r in results if r['article_url'] == article['html_url']), None)
 
                 if not existing_result:
                     results.append({
@@ -132,7 +167,8 @@ def search():
                     })
 
         # Sort the results based on the weighted_score in descending order
-        sorted_results = sorted(results, key=lambda x: x['weighted_score'], reverse=True)
+        sorted_results = sorted(
+            results, key=lambda x: x['weighted_score'], reverse=True)
 
         return jsonify(sorted_results)
 
@@ -140,9 +176,11 @@ def search():
         print(f"An exception occurred: {e}")
         return jsonify({"error": "An internal error occurred while processing your request."}), 500
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--precompute", help="Precompute article embeddings and save them to a JSON file.", action="store_true")
+    parser.add_argument(
+        "--precompute", help="Precompute article embeddings and save them to a JSON file.", action="store_true")
     args = parser.parse_args()
 
     # Load preprocessed data
@@ -160,7 +198,8 @@ if __name__ == '__main__':
 
     if args.precompute:
         # Precompute article embeddings
-        article_embeddings = precompute_embeddings(preprocessed_data, model, tokenizer, device)
+        article_embeddings = precompute_embeddings(
+            preprocessed_data, model, tokenizer, device)
 
         # Save the embeddings to a JSON file
         with open("article_embeddings.json", "w") as f:
@@ -170,4 +209,4 @@ if __name__ == '__main__':
         with open("article_embeddings.json", "r") as f:
             precomputed_embeddings = json.load(f)
 
-        app.run()
+        app.run(host="0.0.0.0")

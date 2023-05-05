@@ -5,3 +5,5 @@ transformers==4.28.1
 fuzzywuzzy==0.18.0
 tqdm==4.65.0
 python-Levenshtein==0.21.0
+flask_httpauth==4.8.0
+load-dotenv==0.1.0
