@@ -25,6 +25,24 @@ tokens = {
     BEARER_TOKEN: "user"
 }
 
+# Load the precomputed embeddings
+with open("article_embeddings.json", "r") as f:
+    precomputed_embeddings = json.load(f)
+
+# Load preprocessed data
+articles = './cleaner/apollo-knowledge/clean_articles.json'
+preprocessed_data = json.load(open(articles, 'r'))
+
+# Initialize tokenizer and model
+# model_name = "sentence-transformers/paraphrase-distilroberta-base-v2"
+model_name = "sentence-transformers/all-mpnet-base-v2"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModel.from_pretrained(model_name)
+
+# Move the model to GPU if available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
+
 
 @auth.verify_token
 def verify_token(token):
@@ -59,25 +77,6 @@ def precompute_embeddings(preprocessed_data, model, tokenizer, device, batch_siz
         embeddings.extend(batch_embeddings.cpu().numpy().tolist())
 
     return embeddings
-
-
-# Load the precomputed embeddings
-with open("article_embeddings.json", "r") as f:
-    precomputed_embeddings = json.load(f)
-
-# Load preprocessed data
-articles = './cleaner/apollo-knowledge/clean_articles.json'
-preprocessed_data = json.load(open(articles, 'r'))
-
-# Initialize tokenizer and model
-# model_name = "sentence-transformers/paraphrase-distilroberta-base-v2"
-model_name = "sentence-transformers/all-mpnet-base-v2"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModel.from_pretrained(model_name)
-
-# Move the model to GPU if available
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model.to(device)
 
 
 @app.route('/search', methods=['GET'])
@@ -182,19 +181,6 @@ if __name__ == '__main__':
     parser.add_argument(
         "--precompute", help="Precompute article embeddings and save them to a JSON file.", action="store_true")
     args = parser.parse_args()
-
-    # Load preprocessed data
-    articles = './cleaner/clean_articles.json'
-    preprocessed_data = json.load(open(articles, 'r'))
-
-    # Initialize tokenizer and model
-    model_name = "sentence-transformers/paraphrase-distilroberta-base-v2"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModel.from_pretrained(model_name)
-
-    # Move the model to GPU if available
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
 
     if args.precompute:
         # Precompute article embeddings
