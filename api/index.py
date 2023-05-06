@@ -4,6 +4,7 @@ import numpy as np
 import argparse
 from flask import Flask, request, jsonify, g
 from transformers import AutoTokenizer, AutoModel
+from sentence_transformers import SentenceTransformer
 from fuzzywuzzy import fuzz
 from tqdm import tqdm
 
@@ -36,9 +37,10 @@ preprocessed_data = json.load(open(articles, 'r'))
 # Initialize tokenizer and model
 # model_name = "sentence-transformers/paraphrase-distilroberta-base-v2"
 model_name = "sentence-transformers/all-mpnet-base-v2"
+model_dir = "./model/" + model_name
 token_size = 512
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModel.from_pretrained(model_name)
+tokenizer = AutoTokenizer.from_pretrained(model_dir)
+model = AutoModel.from_pretrained(model_dir)
 
 # Move the model to GPU if available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -203,6 +205,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--precompute", help="Precompute article embeddings and save them to a JSON file.", action="store_true")
+    parser.add_argument(
+        "--download", help="Download the model", action="store_true")
     args = parser.parse_args()
 
     if args.precompute:
@@ -213,6 +217,12 @@ if __name__ == '__main__':
         # Save the embeddings to a JSON file
         with open("article_embeddings.json", "w") as f:
             json.dump(article_embeddings, f)
+    elif args.download:
+        # Download and save the model and tokenizer
+        model = SentenceTransformer(model_name)
+        model.save(model_dir)
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        tokenizer.save_pretrained(model_dir)
     else:
         # Load the precomputed embeddings
         with open("article_embeddings.json", "r") as f:
