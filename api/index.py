@@ -16,10 +16,10 @@ from tqdm import tqdm
 import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
-from nltk.stem import PorterStemmer
+from nltk.stem import WordNetLemmatizer
+from nltk.corpus import wordnet
 
-# Download the stopwords from nltk
-nltk.download('stopwords')
+nltk.download('wordnet')
 nltk.download('punkt')
 
 load_dotenv()  # Load the environment variables from the .env file
@@ -97,13 +97,30 @@ def remove_stop_words(search_query):
     return cleaned_query
 
 
+def lemmatize_words(text):
+    # Tokenize the text
+    words = word_tokenize(text)
+
+    # Create a WordNet Lemmatizer object
+    lemmatizer = WordNetLemmatizer()
+
+    # Perform lemmatization on the words
+    lemmatized_words = [lemmatizer.lemmatize(
+        word, pos=wordnet.VERB) for word in words]
+
+    # Join the lemmatized words back into a string
+    lemmatized_text = ' '.join(lemmatized_words)
+
+    return lemmatized_text
+
+
 def get_fuzzy_score(search_query, article):
     body_ratio = 0.5
     label_ratio = 0.5
 
-    cleaned_query = stem_words(remove_stop_words(search_query))
+    cleaned_query = lemmatize_words(remove_stop_words(search_query))
     cleaned_body = remove_stop_words(article['body'])
-    cleaned_label = stem_words(remove_stop_words(
+    cleaned_label = lemmatize_words(remove_stop_words(
         ' '.join(article['labels'])
     ))
 
@@ -119,22 +136,6 @@ def get_fuzzy_score(search_query, article):
                    label_fuzzy_score * label_ratio)
 
     return fuzzy_score
-
-
-def stem_words(text):
-    # Tokenize the text
-    words = word_tokenize(text)
-
-    # Create a Porter Stemmer object
-    stemmer = PorterStemmer()
-
-    # Perform stemming on the words
-    stemmed_words = [stemmer.stem(word) for word in words]
-
-    # Join the stemmed words back into a string
-    stemmed_text = ' '.join(stemmed_words)
-
-    return stemmed_text
 
 
 @auth.verify_token
@@ -218,7 +219,7 @@ def search():
                 })
 
         print(user_query)
-        print(stem_words(remove_stop_words(user_query)))
+        print(lemmatize_words(remove_stop_words(user_query)))
 
         # Calculate fuzzy search scores for all articles
         fuzzy_scores = [(get_fuzzy_score(user_query, article), idx)
