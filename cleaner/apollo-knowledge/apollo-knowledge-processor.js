@@ -1,7 +1,8 @@
 import { JSDOM } from 'jsdom';
 import { splitChunk } from '../utils.js';
 
-export async function processData(articles) {
+export async function processData(rawArticles) {
+  const articles = rawArticles.filter((article) => !article.draft);
   const chunks = [];
   for (const article of articles) {
     const articleData = getArticleData(article);
@@ -53,9 +54,6 @@ function getArticleData(article) {
           article_url += '#' + headingBookmark;
         }
         let headings = headingStack.map((h) => h.textContent);
-        if (headings[0] !== article.title) {
-          headings.unshift(article.title);
-        }
         headings = headings.join(' > ');
         if (data.at(-1)?.headings === headings) {
           data.at(-1).body += text + ' ';
@@ -67,6 +65,7 @@ function getArticleData(article) {
             labels: article.label_names,
             body: text + ' ',
             html_url: article_url,
+            created_at: article.created_at,
           });
         }
       }
