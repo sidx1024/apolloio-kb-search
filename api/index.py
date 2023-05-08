@@ -13,14 +13,10 @@ from sentence_transformers import SentenceTransformer
 from fuzzywuzzy import fuzz
 from tqdm import tqdm
 
-import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet
-
-nltk.download('wordnet')
-nltk.download('punkt')
 
 load_dotenv()  # Load the environment variables from the .env file
 
