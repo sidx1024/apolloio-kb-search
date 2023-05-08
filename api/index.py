@@ -139,7 +139,7 @@ def search():
 
                 # Combine the similarity_score, fuzzy_score, and labels_score using weights
                 similarity_weight = 0.3
-                fuzzy_weight = 0.4
+                fuzzy_weight = 0
                 labels_weight = 0.3
 
                 weighted_score = (similarity_weight * score +
@@ -175,8 +175,8 @@ def search():
                         user_query, ' '.join(article['labels'])) / 100
 
                     # Combine the fuzzy_score and labels_score using weights
-                    fuzzy_weight = 0.7
-                    labels_weight = 0.3
+                    fuzzy_weight = 0.5
+                    labels_weight = 0.5
                     weighted_score = (fuzzy_weight * fuzzy_score +
                                       labels_weight * labels_score)
 
@@ -192,7 +192,7 @@ def search():
 
         # Sort the results based on the weighted_score in descending order
         sorted_results = sorted(
-            results, key=lambda x: x['weighted_score'], reverse=True)
+            results, key=lambda x: x['similarity_score'], reverse=True)
 
         return jsonify(sorted_results)
 
@@ -228,4 +228,4 @@ if __name__ == '__main__':
         with open("article_embeddings.json", "r") as f:
             precomputed_embeddings = json.load(f)
 
-        app.run(host="0.0.0.0")
+        app.run(host="0.0.0.0", port="3002")
