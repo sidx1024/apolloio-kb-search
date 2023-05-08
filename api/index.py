@@ -1,17 +1,26 @@
+from dotenv import load_dotenv
+import os
+from flask_httpauth import HTTPTokenAuth
+from flask import Flask
 import torch
 import json
 import numpy as np
 import argparse
+import traceback
 from flask import Flask, request, jsonify, g
 from transformers import AutoTokenizer, AutoModel
 from sentence_transformers import SentenceTransformer
 from fuzzywuzzy import fuzz
 from tqdm import tqdm
 
-from flask import Flask
-from flask_httpauth import HTTPTokenAuth
-import os
-from dotenv import load_dotenv
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.stem import PorterStemmer
+
+# Download the stopwords from nltk
+nltk.download('stopwords')
+nltk.download('punkt')
 
 load_dotenv()  # Load the environment variables from the .env file
 
@@ -72,6 +81,62 @@ def precompute_embeddings(preprocessed_data, model, tokenizer, device, batch_siz
     return embeddings
 
 
+def remove_stop_words(search_query):
+    # Set of common English stop words
+    stop_words = set(stopwords.words('english'))
+
+    # Tokenize the search query
+    words = word_tokenize(search_query)
+
+    # Remove stop words from the search query
+    filtered_query = [word for word in words if word.lower() not in stop_words]
+
+    # Join the words back into a string
+    cleaned_query = ' '.join(filtered_query)
+
+    return cleaned_query
+
+
+def get_fuzzy_score(search_query, article):
+    body_ratio = 0.5
+    label_ratio = 0.5
+
+    cleaned_query = stem_words(remove_stop_words(search_query))
+    cleaned_body = remove_stop_words(article['body'])
+    cleaned_label = stem_words(remove_stop_words(
+        ' '.join(article['labels'])
+    ))
+
+    body_fuzzy_score = fuzz.token_set_ratio(
+        cleaned_query, cleaned_body
+    ) / 100
+
+    label_fuzzy_score = fuzz.token_set_ratio(
+        cleaned_query, cleaned_label
+    ) / 100
+
+    fuzzy_score = (body_fuzzy_score * body_ratio +
+                   label_fuzzy_score * label_ratio)
+
+    return fuzzy_score
+
+
+def stem_words(text):
+    # Tokenize the text
+    words = word_tokenize(text)
+
+    # Create a Porter Stemmer object
+    stemmer = PorterStemmer()
+
+    # Perform stemming on the words
+    stemmed_words = [stemmer.stem(word) for word in words]
+
+    # Join the stemmed words back into a string
+    stemmed_text = ' '.join(stemmed_words)
+
+    return stemmed_text
+
+
 @auth.verify_token
 def verify_token(token):
     if env == 'development':
@@ -124,45 +189,44 @@ def search():
         top_matches = sorted_similarity_scores[:k]
 
         results = []
+
         for match in top_matches:
             score, idx = match
             if score >= 0.6:
                 article = preprocessed_data[idx]
 
                 # Calculate the fuzzy search score for the user query and the matching chunk
-                fuzzy_score = fuzz.token_set_ratio(
-                    user_query, article['body']) / 100
-
-                # Calculate the label match score for the user query
-                labels_score = fuzz.token_set_ratio(
-                    user_query, ' '.join(article['labels'])) / 100
+                fuzzy_score = get_fuzzy_score(user_query, article)
 
                 # Combine the similarity_score, fuzzy_score, and labels_score using weights
                 similarity_weight = 0.3
-                fuzzy_weight = 0
-                labels_weight = 0.3
+                fuzzy_weight = 0.7
 
                 weighted_score = (similarity_weight * score +
-                                  fuzzy_weight * fuzzy_score +
-                                  labels_weight * labels_score)
+                                  fuzzy_weight * fuzzy_score)
 
                 results.append({
                     'matching_chunk': article['body'],
                     'article_url': article['html_url'],
+                    'title': article['title'],
                     'headings': article['headings'],
+                    'labels': article['labels'],
                     'similarity_score': score,
                     'fuzzy_score': fuzzy_score,
-                    'labels_score': labels_score,
-                    'weighted_score': weighted_score
+                    'weighted_score': weighted_score,
+                    'created_at': article['created_at'],
                 })
 
+        print(user_query)
+        print(stem_words(remove_stop_words(user_query)))
+
         # Calculate fuzzy search scores for all articles
-        fuzzy_scores = [(fuzz.token_set_ratio(user_query, article['body']) / 100, idx)
+        fuzzy_scores = [(get_fuzzy_score(user_query, article), idx)
                         for idx, article in enumerate(preprocessed_data)]
 
         # Add fuzzy matches to the results if they are not already included
         for fuzzy_score, idx in fuzzy_scores:
-            if fuzzy_score >= 0.8:
+            if fuzzy_score >= 0.7:
                 article = preprocessed_data[idx]
 
                 # Check if the article is already in the results
@@ -170,34 +234,27 @@ def search():
                     (r for r in results if r['article_url'] == article['html_url']), None)
 
                 if not existing_result:
-                    # Calculate the heading match score for the user query and the article headings
-                    labels_score = fuzz.token_set_ratio(
-                        user_query, ' '.join(article['labels'])) / 100
-
-                    # Combine the fuzzy_score and labels_score using weights
-                    fuzzy_weight = 0.5
-                    labels_weight = 0.5
-                    weighted_score = (fuzzy_weight * fuzzy_score +
-                                      labels_weight * labels_score)
-
+                    fuzzy_score = get_fuzzy_score(user_query, article)
                     results.append({
                         'matching_chunk': article['body'],
                         'article_url': article['html_url'],
+                        'title': article['title'],
                         'headings': article['headings'],
+                        'labels': article['labels'],
                         'similarity_score': 0,
                         'fuzzy_score': fuzzy_score,
-                        'labels_score': labels_score,
-                        'weighted_score': weighted_score
+                        'weighted_score': fuzzy_score,
+                        'created_at': article['created_at'],
                     })
-
         # Sort the results based on the weighted_score in descending order
         sorted_results = sorted(
-            results, key=lambda x: x['similarity_score'], reverse=True)
+            results, key=lambda x: x['weighted_score'], reverse=True)
 
         return jsonify(sorted_results)
 
     except Exception as e:
         print(f"An exception occurred: {e}")
+        traceback.print_exc()
         return jsonify({"error": "An internal error occurred while processing your request."}), 500
 
 
@@ -227,5 +284,12 @@ if __name__ == '__main__':
         # Load the precomputed embeddings
         with open("article_embeddings.json", "r") as f:
             precomputed_embeddings = json.load(f)
+
+        if len(precomputed_embeddings) != len(preprocessed_data):
+            print(
+                f"Length of precomputed_embeddings: {len(precomputed_embeddings)}")
+            print(f"Length of preprocessed_data: {len(preprocessed_data)}")
+            raise Exception(
+                "The length of embeddings and data do not match. You might want to precompute the embeddings if you have updated the data.")
 
         app.run(host="0.0.0.0", port="3002")
