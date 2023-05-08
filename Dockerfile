@@ -17,8 +17,6 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-RUN python3 prepare.py
-
 EXPOSE 3002
 
 ENTRYPOINT [ "python3", "./api/index.py" ]
