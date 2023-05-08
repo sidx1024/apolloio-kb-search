@@ -11,7 +11,7 @@ services:
         source: venv
         target: /app/.venv
     ports:
-      - '3002:3002'
+      - '80:3002'
     env_file: .env
 
 volumes:

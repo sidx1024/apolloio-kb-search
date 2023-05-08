@@ -1,11 +1,5 @@
 FROM python:3.9.6
 
-# Install Git LFS
-RUN apt-get update && \
-    apt-get install -y git-lfs && \
-    git lfs install \
-    git-lfs pull
-
 WORKDIR /app
 
 COPY requirements.txt .
