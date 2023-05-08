@@ -1,5 +1,5 @@
 Flask==2.2.2
-torch==2.0.0
+torch==2.0.0 -f https://download.pytorch.org/whl/cpu/torch_stable.html
 numpy==1.24.3
 transformers==4.28.1
 fuzzywuzzy==0.18.0
