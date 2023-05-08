@@ -45,6 +45,35 @@ with open("article_embeddings.json", "r") as f:
 articles = './cleaner/apollo-knowledge/clean_articles.json'
 preprocessed_data = json.load(open(articles, 'r'))
 
+
+# Initialize lemmatizer and stop_words outside the function
+lemmatizer = WordNetLemmatizer()
+stop_words = set(stopwords.words('english'))
+
+
+def lemmatize_and_remove_stopwords(text):
+    words = nltk.word_tokenize(text)
+
+    # Use a list comprehension and set membership check for faster filtering
+    filtered_words = [lemmatizer.lemmatize(
+        word) for word in words if word not in stop_words]
+
+    return ' '.join(filtered_words)
+
+
+for article in preprocessed_data:
+    # Lemmatize and remove stopwords from the article body
+    article['lemmatized_body'] = lemmatize_and_remove_stopwords(
+        article['body'])
+
+    # Lemmatize and remove stopwords from the labels (array of strings)
+    lemmatized_labels = []
+    for label in article['labels']:
+        lemmatized_label = lemmatize_and_remove_stopwords(label)
+        lemmatized_labels.append(lemmatized_label)
+
+    article['lemmatized_labels_merged'] = ' '.join(lemmatized_labels)
+
 # Initialize tokenizer and model
 # model_name = "sentence-transformers/paraphrase-distilroberta-base-v2"
 model_name = "sentence-transformers/all-mpnet-base-v2"
@@ -83,48 +112,13 @@ def precompute_embeddings(preprocessed_data, model, tokenizer, device, batch_siz
     return embeddings
 
 
-def remove_stop_words(search_query):
-    # Set of common English stop words
-    stop_words = set(stopwords.words('english'))
-
-    # Tokenize the search query
-    words = word_tokenize(search_query)
-
-    # Remove stop words from the search query
-    filtered_query = [word for word in words if word.lower() not in stop_words]
-
-    # Join the words back into a string
-    cleaned_query = ' '.join(filtered_query)
-
-    return cleaned_query
-
-
-def lemmatize_words(text):
-    # Tokenize the text
-    words = word_tokenize(text)
-
-    # Create a WordNet Lemmatizer object
-    lemmatizer = WordNetLemmatizer()
-
-    # Perform lemmatization on the words
-    lemmatized_words = [lemmatizer.lemmatize(
-        word, pos=wordnet.VERB) for word in words]
-
-    # Join the lemmatized words back into a string
-    lemmatized_text = ' '.join(lemmatized_words)
-
-    return lemmatized_text
-
-
 def get_fuzzy_score(search_query, article):
     body_ratio = 0.5
     label_ratio = 0.5
 
-    cleaned_query = lemmatize_words(remove_stop_words(search_query))
-    cleaned_body = remove_stop_words(article['body'])
-    cleaned_label = lemmatize_words(remove_stop_words(
-        ' '.join(article['labels'])
-    ))
+    cleaned_query = lemmatize_and_remove_stopwords(search_query)
+    cleaned_body = article['lemmatized_body']
+    cleaned_label = article['lemmatized_labels_merged']
 
     body_fuzzy_score = fuzz.token_set_ratio(
         cleaned_query, cleaned_body
@@ -220,8 +214,8 @@ def search():
                     'created_at': article['created_at'],
                 })
 
-        print(user_query)
-        print(lemmatize_words(remove_stop_words(user_query)))
+        # print(user_query)
+        # print(lemmatize_and_remove_stopwords(user_query))
 
         # Calculate fuzzy search scores for all articles
         fuzzy_scores = [(get_fuzzy_score(user_query, article), idx)
