@@ -50,9 +50,10 @@ else:
     # Save the model
     model.save(model_dir)
 
+
 # Perform testing using the trained model
 test_sentences = ["sales navigator linkedin does not work",
-                  "warm up emails", "i opened the email i sent and it shows as opened", "enter a valid email while linking mailbox sid--@gmail.com", "how to resume a contact", "how many email accounts can i add", "phone trigger condition"]
+                  "warm up emails", "i opened the email i sent and it shows as opened", "enter a valid email while linking mailbox sid--@gmail.com", "how to resume a contact", "how many email accounts can i add", "phone trigger condition", "positive outcome"]
 
 # Encode the test sentences
 test_embeddings = model.encode(test_sentences)
@@ -61,10 +62,12 @@ test_embeddings = model.encode(test_sentences)
 with open(articles_file) as f:
     data = json.load(f)
 
+corpus_embeddings = model.encode([d['body'] for d in data])
+
 # Find the closest match for each test sentence
 for i, test_embedding in enumerate(test_embeddings):
     closest_indices = [idx['corpus_id'] for idx in util.semantic_search(
-        test_embedding, model.encode([d['body'] for d in data]))[0]]
+        test_embedding, corpus_embeddings)[0]]
     closest_chunks = [data[idx] for idx in closest_indices][:1]
 
     print("======================================================================================")
