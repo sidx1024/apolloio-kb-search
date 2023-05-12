@@ -1,5 +1,5 @@
 from sentence_transformers import SentenceTransformer, util
-from config import articles
+from config import model_dir, articles
 import json
 import traceback
 from flask import Flask, request, jsonify
@@ -8,7 +8,6 @@ from config import model_dir, articles
 
 # File paths
 articles_file = articles
-model_dir = "model/fine_tuned_model"
 model = SentenceTransformer(model_dir)
 
 app = Flask(__name__)
@@ -16,6 +15,8 @@ app = Flask(__name__)
 # Load the original data
 with open(articles_file) as f:
     data = json.load(f)
+
+corpus_embeddings = model.encode([d['body'] for d in data])
 
 
 @app.route('/search', methods=['GET'])
@@ -48,7 +49,7 @@ def semantic_search(user_query):
     user_query_embedding = model.encode(user_query)
 
     closest_results = util.semantic_search(
-        user_query_embedding, model.encode([d['body'] for d in data]), top_k=3)
+        user_query_embedding, corpus_embeddings, top_k=3)
 
     closest_chunks = []
     for result in closest_results[0]:
