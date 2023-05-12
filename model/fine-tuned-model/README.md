@@ -46,9 +46,9 @@ The model was trained with the parameters:
 
 **DataLoader**:
 
-`torch.utils.data.dataloader.DataLoader` of length 63 with parameters:
+`torch.utils.data.dataloader.DataLoader` of length 94 with parameters:
 ```
-{'batch_size': 24, 'sampler': 'torch.utils.data.sampler.RandomSampler', 'batch_sampler': 'torch.utils.data.sampler.BatchSampler'}
+{'batch_size': 16, 'sampler': 'torch.utils.data.sampler.RandomSampler', 'batch_sampler': 'torch.utils.data.sampler.BatchSampler'}
 ```
 
 **Loss**:

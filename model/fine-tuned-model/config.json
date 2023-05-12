@@ -1,5 +1,5 @@
 {
-  "_name_or_path": "model/sentence-transformers/all-mpnet-base-v2/",
+  "_name_or_path": "./model/sentence-transformers/all-mpnet-base-v2/",
   "architectures": [
     "MPNetModel"
   ],
