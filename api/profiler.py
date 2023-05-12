@@ -1,5 +1,5 @@
 from werkzeug.middleware.profiler import ProfilerMiddleware
-from index import app
+from api.index_old import app
 
 app.config['PROFILE'] = True
 app.wsgi_app = ProfilerMiddleware(

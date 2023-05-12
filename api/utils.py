@@ -1,5 +1,6 @@
 import torch
 from transformers import AutoTokenizer
+from sentence_transformers import SentenceTransformer, util, InputExample, losses
 from fuzzywuzzy import fuzz
 from tqdm import tqdm
 
@@ -16,9 +17,11 @@ nltk.download('wordnet', download_dir='.')
 nltk.download('stopwords', download_dir='.')
 nltk.download('punkt', download_dir='.')
 
+# model = SentenceTransformer(model_dir)
+
 
 def split_content(data, max_token_size=token_size):
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer = SentenceTransformer(model_dir)
     chunks_data = []
 
     for article in data:
