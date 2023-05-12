@@ -45,20 +45,22 @@ def get_matched_words(query, text):
     return matched_words
 
 
+top_k = 3
+
+
 def semantic_search(user_query):
     user_query_embedding = model.encode(user_query)
 
     closest_results = util.semantic_search(
-        user_query_embedding, corpus_embeddings, top_k=3)
+        user_query_embedding, corpus_embeddings, top_k)
 
     closest_chunks = []
     for result in closest_results[0]:
         idx = result['corpus_id']
         similarity_score = result['score']
-        if similarity_score > 0.4:
-            chunk = data[idx]
-            chunk['similarity_score'] = similarity_score
-            closest_chunks.append(chunk)
+        chunk = data[idx]
+        chunk['similarity_score'] = similarity_score
+        closest_chunks.append(chunk)
 
     return closest_chunks
 
