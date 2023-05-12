@@ -1,5 +1,7 @@
 import { JSDOM } from 'jsdom';
-import { splitChunk } from '../utils.js';
+
+const dom = new JSDOM('<html></html>');
+const { Node } = dom.window;
 
 export async function processData(rawArticles) {
   const articles = rawArticles.filter((article) => !article.draft);
@@ -7,7 +9,7 @@ export async function processData(rawArticles) {
   for (const article of articles) {
     const articleData = getArticleData(article);
     for (const articleChunk of articleData) {
-      chunks.push(...splitChunk(articleChunk));
+      chunks.push(articleChunk);
     }
   }
 
@@ -15,6 +17,22 @@ export async function processData(rawArticles) {
 }
 
 function getArticleData(article) {
+  const document = JSDOM.fragment(article.body);
+
+  return getHeadingChunks(document).map((chunk) => {
+    return {
+      ...chunk,
+      title: article.title,
+      labels: article.label_names,
+      html_url: chunk.heading_id
+        ? article.html_url + '#' + chunk.heading_id
+        : article.html_url,
+      created_at: article.created_at,
+    };
+  });
+}
+
+function getArticleDataOld(article) {
   const html = article.body;
   const data = [];
   const headingStack = [];
@@ -82,4 +100,81 @@ function getArticleData(article) {
   traverseNodes(document);
 
   return data;
+}
+
+function getHeadingChunks(node) {
+  let chunks = [];
+  let chunk = { headings: [], heading_id: '', text: '' };
+  let headingHierarchy = [];
+
+  function processNode(node) {
+    if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+      for (let child of node.childNodes) {
+        processNode(child);
+      }
+    } else if (node.nodeType === Node.TEXT_NODE) {
+      chunk.text += ' ' + node.nodeValue;
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      if (/^h[1-6]$/i.test(node.tagName)) {
+        let currentHeadingLevel = parseInt(node.tagName.substring(1));
+        headingHierarchy = headingHierarchy.slice(0, currentHeadingLevel - 1);
+        headingHierarchy.push(naiveInnerText(node).trim());
+        if (chunk.headings.length !== 0 || chunk.text.trim() !== '') {
+          chunks.push({ ...chunk });
+          chunk = { headings: [...headingHierarchy], text: '' };
+        } else {
+          chunk.headings = [...headingHierarchy];
+        }
+        chunk.heading_id = node.id;
+      } else if (node.tagName.toLowerCase() === 'a') {
+        if (node.getAttribute('href') !== '#top') {
+          chunk.text += ' ' + naiveInnerText(node);
+        }
+      } else if (node.tagName.toLowerCase() === 'li') {
+        chunk.text += ' - ';
+        for (let child of node.childNodes) {
+          processNode(child);
+        }
+      } else {
+        for (let child of node.childNodes) {
+          processNode(child);
+        }
+      }
+    }
+  }
+
+  processNode(node);
+
+  if (chunk.headings.length !== 0 || chunk.text.trim() !== '') {
+    chunks.push(chunk);
+  }
+
+  return chunks.map((chunk) => {
+    return {
+      headings: chunk.headings.join(' > '),
+      heading_id: chunk.heading_id,
+      body: chunk.text
+        .replaceAll(/\t/g, '\n')
+        .replaceAll(/[ ]*[\n][ ]*/g, '\n')
+        .replaceAll(/\n{1,}/g, '\n')
+        .replaceAll(/ {2,}/g, ' ')
+        .trim(),
+    };
+  });
+}
+
+function naiveInnerText(node) {
+  const Node = node; // We need Node(DOM's Node) for the constants, but Node doesn't exist in the nodejs global space, and any Node instance references the constants through the prototype chain
+  return [...node.childNodes]
+    .map((node) => {
+      switch (node.nodeType) {
+        case Node.TEXT_NODE:
+          return node.textContent;
+        case Node.ELEMENT_NODE:
+          return naiveInnerText(node);
+        default:
+          return '';
+      }
+    })
+    .join('\n');
 }

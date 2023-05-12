@@ -1,3 +1,4 @@
+from transformers import AutoTokenizer
 from dotenv import load_dotenv
 import os
 from flask_httpauth import HTTPTokenAuth
@@ -41,17 +42,54 @@ tokens = {
 with open("article_embeddings.json", "r") as f:
     precomputed_embeddings = json.load(f)
 
-# Load preprocessed data
-articles = './cleaner/apollo-knowledge/clean_articles.json'
-preprocessed_data = json.load(open(articles, 'r'))
-
 
 # Initialize lemmatizer and stop_words outside the function
 lemmatizer = WordNetLemmatizer()
 stop_words = set(stopwords.words('english'))
 
 
+def split_content(data, max_token_size=512):
+    tokenizer = AutoTokenizer.from_pretrained(
+        'sentence-transformers/all-mpnet-base-v2')
+    chunks_data = []
+
+    for article in data:
+        body = article['body']
+        paragraphs = body.split("\n \n")
+        for paragraph in paragraphs:
+            tokenized_paragraph = tokenizer.tokenize(paragraph)
+            if len(tokenized_paragraph) <= max_token_size:
+                article_copy = article.copy()
+                article_copy['body'] = paragraph
+                chunks_data.append(article_copy)
+            else:
+                sentences = nltk.sent_tokenize(paragraph)
+                chunk = ""
+                for sentence in sentences:
+                    tokenized_sentence = tokenizer.tokenize(sentence)
+                    if len(tokenizer.tokenize(chunk)) + len(tokenized_sentence) <= max_token_size:
+                        chunk += " " + sentence
+                    else:
+                        if chunk:  # add the chunk to the list if it's not empty
+                            article_copy = article.copy()
+                            article_copy['body'] = chunk
+                            chunks_data.append(article_copy)
+                        chunk = sentence
+                if chunk:  # add the last chunk if it's not empty
+                    article_copy = article.copy()
+                    article_copy['body'] = chunk
+                    chunks_data.append(article_copy)
+
+    return chunks_data
+
+
+# Load preprocessed data
+articles = './cleaner/apollo-knowledge/clean_articles.json'
+preprocessed_data = split_content(json.load(open(articles, 'r')))
+
+
 def lemmatize_and_remove_stopwords(text):
+
     words = nltk.word_tokenize(text)
 
     # Use a list comprehension and set membership check for faster filtering
