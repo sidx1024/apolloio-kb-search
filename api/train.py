@@ -1,6 +1,6 @@
 from sentence_transformers import SentenceTransformer, util, InputExample, losses
 from torch.utils.data import DataLoader
-from config import base_model_dir, model_dir, articles
+from config import base_model, base_model_dir, model_dir, articles
 import json
 import os.path
 
@@ -9,15 +9,23 @@ articles_file = articles
 
 # Load or train the model
 if os.path.exists(model_dir):
+    print('Using existing model from ' + model_dir)
     # Load existing model
     model = SentenceTransformer(model_dir)
 else:
-    # Load data from JSON file
-    with open(articles_file) as f:
-        data = (json.load(f))
+    if not os.path.exists(base_model_dir):
+        print(base_model_dir + 'does not exist so it will be downloaded and saved')
+        model = SentenceTransformer(base_model)
+        model.save(model_dir)
+
+    print('Using model from ' + base_model_dir)
 
     # Define the training procedure
     model = SentenceTransformer(base_model_dir)
+
+    # Load data from JSON file
+    with open(articles_file) as f:
+        data = (json.load(f))
 
     # Create InputExamples, with a target similarity of 1.0 for each pair
     examples = []
