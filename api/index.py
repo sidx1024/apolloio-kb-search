@@ -10,7 +10,7 @@ from flask import Flask, request, jsonify, g
 from transformers import AutoTokenizer, AutoModel
 from sentence_transformers import SentenceTransformer
 
-from config import model_name, model_dir, token_size, env, BEARER_TOKEN
+from config import model_name, model_dir, token_size, env, BEARER_TOKEN, articles
 from utils import precompute_embeddings, lemmatize_and_remove_stopwords, get_fuzzy_score, split_content
 
 load_dotenv()  # Load the environment variables from the .env file
@@ -28,7 +28,6 @@ with open("article_embeddings.json", "r") as f:
 
 
 # Load preprocessed data
-articles = './cleaner/apollo-knowledge/clean_articles.json'
 preprocessed_data = split_content(json.load(open(articles, 'r')))
 
 
