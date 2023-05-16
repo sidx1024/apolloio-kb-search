@@ -1,13 +1,15 @@
-from sentence_transformers import SentenceTransformer, util
-from config import model_dir, articles
-import json
-import traceback
 from flask import Flask, request, jsonify
-
+import os
+import traceback
+import json
+import pickle
 from config import model_dir, articles
+from sentence_transformers import SentenceTransformer, util
+
 
 # File paths
 articles_file = articles
+embeddings_file = 'corpus_embeddings.pkl'
 model = SentenceTransformer(model_dir)
 
 app = Flask(__name__)
@@ -16,9 +18,17 @@ app = Flask(__name__)
 with open(articles_file) as f:
     data = json.load(f)
 
-print('Building corpus embeddings...')
-corpus_embeddings = model.encode([d['body'] for d in data])
-print('Building corpus embeddings completed...')
+# Check if the embeddings file exists
+if os.path.exists(embeddings_file):
+    with open(embeddings_file, 'rb') as f:
+        corpus_embeddings = pickle.load(f)
+else:
+    print('Creating corpus embeddings...')
+    corpus_embeddings = model.encode([d['body'] for d in data])
+
+    # Write the embeddings to a file
+    with open(embeddings_file, 'wb') as f:
+        pickle.dump(corpus_embeddings, f)
 
 
 @app.route('/search', methods=['GET'])
