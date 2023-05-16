@@ -16,7 +16,9 @@ app = Flask(__name__)
 with open(articles_file) as f:
     data = json.load(f)
 
+print('Building corpus embeddings...')
 corpus_embeddings = model.encode([d['body'] for d in data])
+print('Building corpus embeddings completed...')
 
 
 @app.route('/search', methods=['GET'])
@@ -66,4 +68,5 @@ def semantic_search(user_query):
 
 
 if __name__ == '__main__':
+    print('Starting server...')
     app.run(host="0.0.0.0", port="3002")
